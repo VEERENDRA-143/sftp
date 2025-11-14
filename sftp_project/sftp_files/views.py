@@ -16,12 +16,15 @@ def upload_file(request):
         filename, extension = os.path.splitext(uploaded_file.name)
         unique_filename = f'{filename}_{timestamp}{extension}'
 
-        remote_path = f'desktop/uploaded/{unique_filename}'
+        remote_dir = 'desktop/uploaded'
+        remote_path = f'{remote_dir}/{unique_filename}'
 
         try:
             cnopts = pysftp.CnOpts()
             cnopts.hostkeys = None
             with pysftp.Connection(**sftp_credentials, cnopts=cnopts) as sftp:
+                if not sftp.exists(remote_dir):
+                    sftp.makedirs(remote_dir)
                 sftp.putfo(uploaded_file, remote_path)
             return JsonResponse({'message': 'File uploaded successfully', 'filename': unique_filename})
         except pysftp.ConnectionException as e:
