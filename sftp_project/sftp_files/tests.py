@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from unittest.mock import patch, MagicMock
+from .models import FileMetadata
 import io
 
 class SFTPFileTests(TestCase):
@@ -20,6 +21,8 @@ class SFTPFileTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('File uploaded successfully', response.json()['message'])
+        self.assertTrue('file_id' in response.json())
+        self.assertEqual(FileMetadata.objects.count(), 1)
         mock_sftp.putfo.assert_called_once()
 
     @patch('sftp_files.views.pysftp')
@@ -27,8 +30,12 @@ class SFTPFileTests(TestCase):
         mock_sftp = MagicMock()
         mock_pysftp.Connection.return_value.__enter__.return_value = mock_sftp
 
-        filename = 'test.txt'
-        response = self.client.get(reverse('download_file', args=[filename]))
+        metadata = FileMetadata.objects.create(
+            filename='test.txt',
+            filepath='desktop/uploaded/test.txt'
+        )
+
+        response = self.client.get(reverse('download_file', args=[metadata.id]))
 
         self.assertEqual(response.status_code, 200)
         mock_sftp.getfo.assert_called_once()

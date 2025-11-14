@@ -1,6 +1,7 @@
 from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from .sftp_utils import get_sftp_credentials
+from .models import FileMetadata
 import pysftp
 import datetime
 import os
@@ -26,7 +27,12 @@ def upload_file(request):
                 if not sftp.exists(remote_dir):
                     sftp.makedirs(remote_dir)
                 sftp.putfo(uploaded_file, remote_path)
-            return JsonResponse({'message': 'File uploaded successfully', 'filename': unique_filename})
+
+            metadata = FileMetadata.objects.create(
+                filename=unique_filename,
+                filepath=remote_path
+            )
+            return JsonResponse({'message': 'File uploaded successfully', 'file_id': metadata.id})
         except pysftp.ConnectionException as e:
             return JsonResponse({'error': f'SFTP Connection Error: {e}'}, status=500)
         except Exception as e:
@@ -35,20 +41,24 @@ def upload_file(request):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
-def download_file(request, filename):
+def download_file(request, file_id):
     if request.method == 'GET':
+        try:
+            metadata = FileMetadata.objects.get(id=file_id)
+        except FileMetadata.DoesNotExist:
+            return JsonResponse({'error': 'File not found'}, status=404)
+
         sftp_credentials = get_sftp_credentials()
-        remote_path = f'desktop/uploaded/{filename}'
 
         try:
             cnopts = pysftp.CnOpts()
             cnopts.hostkeys = None
             with pysftp.Connection(**sftp_credentials, cnopts=cnopts) as sftp:
                 file_buffer = io.BytesIO()
-                sftp.getfo(remote_path, file_buffer)
+                sftp.getfo(metadata.filepath, file_buffer)
                 file_buffer.seek(0)
 
-                response = FileResponse(file_buffer, as_attachment=True, filename=filename)
+                response = FileResponse(file_buffer, as_attachment=True, filename=metadata.filename)
                 return response
         except pysftp.ConnectionException as e:
             return JsonResponse({'error': f'SFTP Connection Error: {e}'}, status=500)
