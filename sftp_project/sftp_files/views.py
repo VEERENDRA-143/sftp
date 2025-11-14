@@ -19,7 +19,9 @@ def upload_file(request):
         remote_path = f'desktop/uploaded/{unique_filename}'
 
         try:
-            with pysftp.Connection(**sftp_credentials) as sftp:
+            cnopts = pysftp.CnOpts()
+            cnopts.hostkeys = None
+            with pysftp.Connection(**sftp_credentials, cnopts=cnopts) as sftp:
                 sftp.putfo(uploaded_file, remote_path)
             return JsonResponse({'message': 'File uploaded successfully', 'filename': unique_filename})
         except pysftp.ConnectionException as e:
@@ -36,7 +38,9 @@ def download_file(request, filename):
         remote_path = f'desktop/uploaded/{filename}'
 
         try:
-            with pysftp.Connection(**sftp_credentials) as sftp:
+            cnopts = pysftp.CnOpts()
+            cnopts.hostkeys = None
+            with pysftp.Connection(**sftp_credentials, cnopts=cnopts) as sftp:
                 file_buffer = io.BytesIO()
                 sftp.getfo(remote_path, file_buffer)
                 file_buffer.seek(0)
