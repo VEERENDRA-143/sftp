@@ -1,6 +1,6 @@
 from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
-from .sftp_utils import get_sftp_credentials
+from .sftp_utils import get_sftp_credentials, get_sftp_remote_dir
 from .models import FileMetadata
 import pysftp
 import datetime
@@ -17,7 +17,7 @@ def upload_file(request):
         filename, extension = os.path.splitext(uploaded_file.name)
         unique_filename = f'{filename}_{timestamp}{extension}'
 
-        remote_dir = 'desktop/uploaded'
+        remote_dir = get_sftp_remote_dir() or 'desktop/uploaded'
         remote_path = f'{remote_dir}/{unique_filename}'
 
         try:
